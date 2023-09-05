@@ -133,7 +133,11 @@ trait VersionableTrait
      */
     public function versionAt(DateTimeInterface $dateTime)
     {
-        return $this->versions()->where('created_at', '<', $dateTime)->orderByDesc('created_at')->limit(1)->first();
+        return $this->versions()->where('created_at', '<', $dateTime)->orderByDesc('created_at')->limit(1)->firstOr(
+            function () {
+                return $this->versions()->orderBy('version_id')->limit(1)->first();
+            }
+        );
     }
 
     /**
