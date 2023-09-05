@@ -1,6 +1,9 @@
 <?php
+
 namespace Mpociot\Versionable;
 
+use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -21,7 +24,7 @@ trait VersionableTrait
      */
     protected function getVersionClass()
     {
-        if( property_exists( self::class, 'versionClass') ) {
+        if (property_exists(self::class, 'versionClass')) {
             return $this->versionClass;
         }
 
@@ -95,7 +98,6 @@ trait VersionableTrait
         static::saved(function ($model) {
             $model->versionablePostSave();
         });
-
     }
 
     /**
@@ -104,7 +106,7 @@ trait VersionableTrait
      */
     public function versions()
     {
-        return $this->morphMany( $this->getVersionClass(), 'versionable');
+        return $this->morphMany($this->getVersionClass(), 'versionable');
     }
 
     /**
@@ -123,6 +125,15 @@ trait VersionableTrait
     public function previousVersion()
     {
         return $this->getLatestVersions()->limit(1)->offset(1)->first();
+    }
+
+    /**
+     * Returns the version at the given time
+     * @return Version
+     */
+    public function versionAt(DateTimeInterface $dateTime)
+    {
+        return $this->versions()->where('created_at', '<', $dateTime)->orderByDesc('created_at')->limit(1)->first();
     }
 
     /**
@@ -164,8 +175,8 @@ trait VersionableTrait
          * We'll save new versions on updating and first creation.
          */
         if (
-            ( $this->versioningEnabled === true && $this->updating && $this->isValidForVersioning() ) ||
-            ( $this->versioningEnabled === true && !$this->updating && !is_null($this->versionableDirtyData) && count($this->versionableDirtyData))
+            ($this->versioningEnabled === true && $this->updating && $this->isValidForVersioning()) ||
+            ($this->versioningEnabled === true && !$this->updating && !is_null($this->versionableDirtyData) && count($this->versionableDirtyData))
         ) {
             // Save a new version
             $class                     = $this->getVersionClass();
@@ -173,13 +184,13 @@ trait VersionableTrait
             $version->versionable_id   = $this->getKey();
             $version->versionable_type = method_exists($this, 'getMorphClass') ? $this->getMorphClass() : get_class($this);
             $version->user_id          = $this->getAuthUserId();
-            
+
             $versionedHiddenFields = $this->versionedHiddenFields ?? [];
             $this->makeVisible($versionedHiddenFields);
             $version->model_data       = serialize($this->attributesToArray());
             $this->makeHidden($versionedHiddenFields);
 
-            if (!empty( $this->reason )) {
+            if (!empty($this->reason)) {
                 $version->reason = $this->reason;
             }
 
@@ -207,8 +218,9 @@ trait VersionableTrait
      */
     public function createInitialVersion()
     {
-        if( true === $this->fresh()->versions->isEmpty() &&
-            true === $this->versioningEnabled 
+        if (
+            true === $this->fresh()->versions->isEmpty() &&
+            true === $this->versioningEnabled
         ) {
 
             $class                     = $this->getVersionClass();
@@ -216,13 +228,13 @@ trait VersionableTrait
             $version->versionable_id   = $this->getKey();
             $version->versionable_type = method_exists($this, 'getMorphClass') ? $this->getMorphClass() : get_class($this);
             $version->user_id          = $this->getAuthUserId();
-            
+
             $versionedHiddenFields = $this->versionedHiddenFields ?? [];
             $this->makeVisible($versionedHiddenFields);
             $version->model_data       = serialize($this->attributesToArray());
             $this->makeHidden($versionedHiddenFields);
 
-            if (!empty( $this->reason )) {
+            if (!empty($this->reason)) {
                 $version->reason = $this->reason;
             }
 
@@ -239,18 +251,18 @@ trait VersionableTrait
     private function purgeOldVersions()
     {
         $keep = isset($this->keepOldVersions) ? $this->keepOldVersions : 0;
-        
+
         if ((int)$keep > 0) {
             $count = $this->versions()->count();
-            
+
             if ($count > $keep) {
                 $this->getLatestVersions()
                     ->take($count)
                     ->skip($keep)
                     ->get()
                     ->each(function ($version) {
-                    $version->delete();
-                });
+                        $version->delete();
+                    });
             }
         }
     }
@@ -263,14 +275,14 @@ trait VersionableTrait
      */
     private function isValidForVersioning()
     {
-        $dontVersionFields = isset( $this->dontVersionFields ) ? $this->dontVersionFields : [];
+        $dontVersionFields = isset($this->dontVersionFields) ? $this->dontVersionFields : [];
         $removeableKeys    = array_merge($dontVersionFields, [$this->getUpdatedAtColumn()]);
 
         if (method_exists($this, 'getDeletedAtColumn')) {
             $removeableKeys[] = $this->getDeletedAtColumn();
         }
 
-        return ( count(array_diff_key($this->versionableDirtyData, array_flip($removeableKeys))) > 0 );
+        return (count(array_diff_key($this->versionableDirtyData, array_flip($removeableKeys))) > 0);
     }
 
     /**
@@ -288,6 +300,4 @@ trait VersionableTrait
     {
         return $this->versions()->orderByDesc('version_id');
     }
-
-
 }
