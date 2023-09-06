@@ -4,6 +4,7 @@ namespace Mpociot\Versionable;
 
 use Carbon\Carbon;
 use DateTimeInterface;
+use Exception;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
@@ -131,8 +132,11 @@ trait VersionableTrait
      * Returns the version at the given time
      * @return Version
      */
-    public function versionAt(DateTimeInterface $dateTime)
+    public function versionAt(string|DateTimeInterface $dateTime)
     {
+        if (is_string($dateTime)) {
+            $dateTime = Carbon::parse($dateTime);
+        }
         return $this->versions()->where('created_at', '<', $dateTime)->orderByDesc('created_at')->limit(1)->firstOr(
             function () {
                 return $this->versions()->orderBy('version_id')->limit(1)->first();
